@@ -94,6 +94,10 @@ def find_all_tree_divergence_points(model, test_df):
     divergence_feats_tp = {}
     divergence_feats_tn = {}
     
+    all_divergence_feat_fn_diff = {}
+    all_divergence_feat_tp_diff = {}
+    all_divergence_feat_tn_diff = {}
+    
     for estimator in model.estimators_:
         tree_dict = construct_tree_dict(estimator)
         
@@ -130,22 +134,35 @@ def find_all_tree_divergence_points(model, test_df):
         
         divergence_feat_fn_diff = calc_divergence_value_difference(combos_fn)
         for k, v in divergence_feat_fn_diff.items():
-            divergence_feat_fn_diff[k] = np.mean(v)
+            try:
+                all_divergence_feat_fn_diff[k].extend(v)
+            except KeyError:
+                all_divergence_feat_fn_diff[k] = v
         
         divergence_feat_tp_diff = calc_divergence_value_difference(combos_tp)
         for k, v in divergence_feat_tp_diff.items():
-            divergence_feat_tp_diff[k] = np.mean(v)
+            try:
+                all_divergence_feat_tp_diff[k].extend(v)
+            except KeyError:
+                all_divergence_feat_tp_diff[k] = v
             
         divergence_feat_tn_diff = calc_divergence_value_difference(combos_tn)
         for k, v in divergence_feat_tn_diff.items():
-            divergence_feat_tn_diff[k] = np.mean(v)
+            try:
+                all_divergence_feat_tn_diff[k].extend(v)
+            except KeyError:
+                all_divergence_feat_tn_diff[k] = v
 
-    tp_div_df = pd.DataFrame(divergence_feat_tp_diff, index = ["tp"]).T
+    all_divergence_feat_fn_diff = {k: np.mean(v) for k, v in all_divergence_feat_fn_diff.items()}
+    all_divergence_feat_tp_diff = {k: np.mean(v) for k, v in all_divergence_feat_tp_diff.items()}
+    all_divergence_feat_tn_diff = {k: np.mean(v) for k, v in all_divergence_feat_tn_diff.items()}
+    
+    tp_div_df = pd.DataFrame(all_divergence_feat_tp_diff, index = ["tp"]).T
 #     print(tp_div_df.index)
-    fn_div_df = pd.DataFrame(divergence_feat_fn_diff, index = ["fn"]).T
+    fn_div_df = pd.DataFrame(all_divergence_feat_fn_diff, index = ["fn"]).T
 #     print(fn_div_df.index)
     compare_tp_div_df = pd.merge(fn_div_df, tp_div_df, how = 'left', left_index = True, right_index = True)
-    tn_div_df = pd.DataFrame(divergence_feat_tn_diff, index = ["tn"]).T
+    tn_div_df = pd.DataFrame(all_divergence_feat_tn_diff, index = ["tn"]).T
     compare_tp_tn_div_df = pd.merge(compare_tp_div_df, tn_div_df, how = 'left', left_index = True, right_index = True)
     return (dict(sorted(divergence_feats_fn.items(), key=lambda x: x[1], reverse=True)),
             dict(sorted(divergence_feats_tp.items(), key=lambda x: x[1], reverse=True)),
